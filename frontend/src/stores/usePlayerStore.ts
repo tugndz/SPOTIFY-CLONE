@@ -6,6 +6,9 @@ interface PlayerStore {
     isPlaying: boolean;
     queue: Song[];
     currentIndex: number;
+    isShuffle: boolean;
+    isRepeatOne: boolean;
+
 
     initializeQueue: (songs: Song[]) => void;
     playAlbum: (song: Song[], startIndex?: number) => void;
@@ -13,6 +16,10 @@ interface PlayerStore {
     togglePlay: () => void;
     playNext: () => void;
     playPrevious: () => void;
+    playRandom: () => void;
+    toggleShuffle: () => void;
+    toggleRepeatOne: () => void;
+
 }
 
 export const usePlayerStore = create<PlayerStore>((set, get) => ({
@@ -20,6 +27,8 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     isPlaying: false,
     queue: [],
     currentIndex: -1,
+    isShuffle: false,
+    isRepeatOne: false,
 
     initializeQueue: (songs: Song[]) => {
         set({
@@ -59,10 +68,35 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         });
     },
     playNext: () => {
-        const { currentIndex, queue } = get();
+        const { currentIndex, queue, isShuffle } = get();
+
+        if (!queue || queue.length === 0) return;
+
+        // nếu đang bật shuffle thì chọn bài tiếp theo ngẫu nhiên
+        if (isShuffle) {
+            let randomIndex = Math.floor(Math.random() * queue.length);
+
+            if (queue.length > 1) {
+                let safety = 0;
+                while (randomIndex === currentIndex && safety < 10) {
+                    randomIndex = Math.floor(Math.random() * queue.length);
+                    safety++;
+                }
+            }
+
+            const nextSong = queue[randomIndex];
+
+            set({
+                currentSong: nextSong,
+                currentIndex: randomIndex,
+                isPlaying: true,
+            });
+            return;
+        }
+
+        // chế độ bình thường: phát tuần tự
         const nextIndex = currentIndex + 1;
 
-        // nếu có bài hát tiếp theo để phat, chúng ta hãy phats nó
         if (nextIndex < queue.length) {
             const nextSong = queue[nextIndex];
             set({
@@ -71,15 +105,40 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
                 isPlaying: true,
             });
         } else {
-            // ko có bài hát tiếp theo
             set({ isPlaying: false });
         }
     },
+
     playPrevious: () => {
-        const { currentIndex, queue } = get();
+        const { currentIndex, queue, isShuffle } = get();
+
+        if (!queue || queue.length === 0) return;
+
+        // nếu đang bật shuffle thì chọn bài bất kỳ khác bài hiện tại
+        if (isShuffle) {
+            let randomIndex = Math.floor(Math.random() * queue.length);
+
+            if (queue.length > 1) {
+                let safety = 0;
+                while (randomIndex === currentIndex && safety < 10) {
+                    randomIndex = Math.floor(Math.random() * queue.length);
+                    safety++;
+                }
+            }
+
+            const prevSong = queue[randomIndex];
+
+            set({
+                currentSong: prevSong,
+                currentIndex: randomIndex,
+                isPlaying: true,
+            });
+            return;
+        }
+
+        // chế độ bình thường: lùi lại 1 bài
         const prevIndex = currentIndex - 1;
 
-        // có một bài hát trước đó
         if (prevIndex >= 0) {
             const prevSong = queue[prevIndex];
             set({
@@ -88,8 +147,45 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
                 isPlaying: true,
             })
         } else {
-            // không có bài hát trước 
             set({ isPlaying: false });
         }
     },
+    playRandom: () => {
+        const { queue, currentIndex } = get();
+
+        // nếu queue rỗng thì không làm gì
+        if (!queue || queue.length === 0) return;
+
+        // chọn index ngẫu nhiên, cố gắng khác bài hiện tại
+        let randomIndex = Math.floor(Math.random() * queue.length);
+
+        if (queue.length > 1) {
+            let safety = 0;
+            while (randomIndex === currentIndex && safety < 10) {
+                randomIndex = Math.floor(Math.random() * queue.length);
+                safety++;
+            }
+        }
+
+        const randomSong = queue[randomIndex];
+
+        set({
+            currentSong: randomSong,
+            currentIndex: randomIndex,
+            isPlaying: true,
+        });
+    },
+
+    toggleShuffle: () => {
+        set((state) => ({
+            isShuffle: !state.isShuffle,
+        }));
+    },
+
+    toggleRepeatOne: () => {
+        set((state) => ({
+            isRepeatOne: !state.isRepeatOne,
+        }));
+    },
+
 }))

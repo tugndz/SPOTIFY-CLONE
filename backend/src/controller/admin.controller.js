@@ -16,39 +16,44 @@ const uploadToClouduinary = async (file) => {
 };
 
 export const createSong = async (req, res, next) => {
-    try {
-        if (!req.files || !req.files.audioFile || !req.files.imageFile) {
-            return res.status(400).json({ message: "Vui lòng tải lên tất cả các tập tin" });
-        }
-
-        const { title, artist, albumId, duration } = req.body;
-        const audioFile = req.files.audioFile;
-        const imageFile = req.files.imageFile;
-
-        const audioUrl = await uploadToClouduinary(audioFile);
-        const imageUrl = await uploadToClouduinary(imageFile);
-
-        const song = new Song({
-            title,
-            artist,
-            audioUrl,
-            imageUrl,
-            duration,
-            albumId: albumId || null
-        })
-        await song.save();
-        // nếu bài hát thuộc về một album, hãy thêm bài hát vào mảng bài hát của album
-        if (albumId) {
-            await Album.findByIdAndUpdate(albumId, {
-                $push: { songs: song._id }
-            });
-        }
-        res.status(201).json(song);
-    } catch (error) {
-        console.log("Lỗi trong createSong:", error);
-        next(error);
+  try {
+    if (!req.files || !req.files.audioFile || !req.files.imageFile) {
+      return res.status(400).json({ message: "Vui lòng tải lên đủ tệp âm thanh và hình ảnh" });
     }
+
+    const { title, artist, albumId, duration } = req.body;
+
+    if (!title?.trim() || !artist?.trim() || duration === undefined) {
+      return res.status(400).json({ message: "Thiếu title/artist/duration" });
+    }
+
+    const durationNumber = Number(duration);
+    if (Number.isNaN(durationNumber) || durationNumber <= 0) {
+      return res.status(400).json({ message: "duration phải là số > 0" });
+    }
+
+    // upload & lưu
+    const audioUrl = await uploadToClouduinary(req.files.audioFile);
+    const imageUrl = await uploadToClouduinary(req.files.imageFile);
+
+    const song = new Song({
+      title: title.trim(),
+      artist: artist.trim(),
+      audioUrl,
+      imageUrl,
+      duration: durationNumber,
+      albumId: albumId || null,
+    });
+
+    await song.save();
+    if (albumId) await Album.findByIdAndUpdate(albumId, { $push: { songs: song._id } });
+    res.status(201).json(song);
+  } catch (error) {
+    console.log("Lỗi trong createSong:", error);
+    next(error);
+  }
 };
+
 
 export const deleteSong = async (req, res, next) => {
     try {

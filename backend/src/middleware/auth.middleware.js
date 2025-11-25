@@ -1,23 +1,19 @@
 import { clerkClient } from '@clerk/express';
 
-export const protectRoute = async (req, res, next) => {
-    if (!req.auth().userId) {
-        return res.status(401).json({ message: "Không được phép - bạn phải đăng nhập" });
-    }
-
-    next();
+export const protectRoute = (req, res, next) => {
+  const auth = req.auth();
+  if (!auth?.userId) return res.status(401).json({ message: "Bạn phải đăng nhập" });
+  next();
 };
 
 export const requireAdmin = async (req, res, next) => {
-    try {
-        const currentUser = await clerkClient.users.getUser(req.auth().userId);
-        const isAdmin = process.env.ADMIN_EMAIL === currentUser.primaryEmailAddress?.emailAddress;
-
-        if (!isAdmin) {
-            return res.status(403).json({ message: "Truy cập bị từ chối - bạn không phải là quản trị viên" });
-        }
-        next();
-    } catch (error) {
-        next(error);
-    }
-}
+  try {
+    const auth = req.auth();
+    const currentUser = await clerkClient.users.getUser(auth.userId);
+    const isAdmin = process.env.ADMIN_EMAIL === currentUser.primaryEmailAddress?.emailAddress;
+    if (!isAdmin) return res.status(403).json({ message: "Bạn không phải admin" });
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
